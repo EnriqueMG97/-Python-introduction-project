@@ -21,6 +21,7 @@ class DB_Operations:
             self.tree.delete(element)
 
         # Getting data
+        dir = os.getcwd() + '/database.db'
         try:
             query = 'SELECT * FROM expenses ORDER BY expenditure DESC'
             db_rows = self.run_query(query)
@@ -29,10 +30,10 @@ class DB_Operations:
                 self.tree.insert('', 0, text = row[1], values = row[2])
         except sqlite3.OperationalError as e:
             self.message['text'] = 'No DB found. A new DB has been created'
-            file = open("/Users/enrique/Introducción a Python/Trabajo/database.db", "w")
+            file = open(dir, "w")
             file.close()
 
-            con = sqlite3.connect("/Users/enrique/Introducción a Python/Trabajo/database.db")
+            con = sqlite3.connect(dir)
             cursor = con.cursor()
             cursor.execute('''CREATE TABLE "expenses"
                     ("id"	        INTEGER     NOT NULL,
@@ -42,9 +43,6 @@ class DB_Operations:
 
             self.get_expenses
         
-
-        
-
     # Function to execute database querys
     def run_query(self, query, parameters = ()):
         with sqlite3.connect(self.db_name) as conn:
@@ -54,21 +52,28 @@ class DB_Operations:
         return result
 
     def add_expense(self):
-        if self.validation():
-            query = 'INSERT INTO expenses VALUES(NULL, ?, ?)'
-            parameters =  (self.expenditure.get(), self.price.get())
-            self.run_query(query, parameters)
-            self.message['text'] = 'Expense {} added successfully'.format(self.expenditure.get())
-            # Cleaning the input
-            self.expenditure.delete(0, END)
-            self.price.delete(0, END)
+        if self.validation1():
+            if self.validation2():
+                query = 'INSERT INTO expenses VALUES(NULL, ?, ?)'
+                parameters =  (self.expenditure.get(), self.price.get())
+                self.run_query(query, parameters)
+                self.message['text'] = 'Expense {} added successfully'.format(self.expenditure.get())
+                # Cleaning the input
+                self.expenditure.delete(0, END)
+                self.price.delete(0, END)
+            else:
+                self.message['text'] = 'Enter an expense with a name that is not repeated'
         else:
             self.message['text'] = 'Expediture and price is required'
         self.get_expenses()
 
     # User input validation
-    def validation(self):
+    def validation1(self):
         return len(self.expenditure.get()) != 0 and len(self.price.get()) != 0
+
+    # Repeated expenses are not allowed (Still not working)
+    def validation2(self):
+        return not self.tree.exists(self.expenditure.get())
 
     def delete_expense(self):
         self.message['text'] = ''
