@@ -22,13 +22,18 @@ import numpy as np
 #-------------------------------------------------------------------------------------------------------#
     
 class Application(ttk.Frame):
-    db_name =  'database.db'
+    db_name = 'database.db'
+    tag_db_name = 'tags.db'
     options = list()
     months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 
     # Initializations
     def __init__(self, window):
         super().__init__(window)
+
+""" MAIN MENU """
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
         self.window = window
         self.window.title('Expenses Control') 
 
@@ -61,18 +66,23 @@ class Application(ttk.Frame):
 
         #-----------------------------------------------------------------------------------------------# (Right)
 
-        # Add expense
-        ttk.Button(self.frame, text = 'Save Expense', command = self.add_expense).grid(row = 1, column = 3, padx = 5, pady = 5, sticky = W + E)
-
-        #-----------------------------------------------------------------------------------------------# (Wrong)
-
+        # Load the tags
         try:
             self.options = self.loadTags()
-            self.saveTags()
-        except FileNotFoundError:
-            dir = os.getcwd() + '/tags.txt'
+        except sqlite3.OperationalError:
+            dir = os.getcwd() + '/tags.db'
             file = open(dir, "w")
             file.close()
+            # Create a new DB
+            con = sqlite3.connect(dir)
+            cursor = con.cursor()
+            cursor.execute('''CREATE TABLE "tags"
+                ("id"	        INTEGER     NOT NULL    UNIQUE,
+	            "tag"	        TEXT        NOT NULL    UNIQUE,
+	            PRIMARY KEY("id"))''')
+            self.loadTags()
+
+        #-----------------------------------------------------------------------------------------------# (Right)
 
         # Tag selection
         # Label
@@ -85,17 +95,22 @@ class Application(ttk.Frame):
         #-----------------------------------------------------------------------------------------------# (Right)
 
         # Add tag
-        ttk.Button(self.frame, text = 'Add Tag', command = self.tagMenu).grid(row = 2, column = 3, padx = 5, pady = 5, sticky = W + E)
+        ttk.Button(self.frame, text = 'Tag menu', command = self.tagMenu).grid(row = 3, column = 1, pady = 5, sticky = W + E)
 
         #-----------------------------------------------------------------------------------------------# (Not implemented totally)
 
         # Date selection
         # Label
-        Label(self.frame, text = 'Date: ').grid(row = 3, column = 0, pady = 5)
+        Label(self.frame, text = 'Date: ').grid(row = 4, column = 0, pady = 5)
         # Calendar (I do not know yet how to implement it, so meanwhile the date of the system)
         #ttk.Button(self.frame, text = 'Calendar').grid(row = 3, column = 1, pady = 5, sticky = W + E)
         self.date = time.strftime("%d/%m/%y")
-        Entry(self.frame, textvariable = StringVar(self.frame, value = self.date), state = 'readonly').grid(row = 3, column = 1, pady = 5, sticky = W + E)
+        Entry(self.frame, textvariable = StringVar(self.frame, value = self.date), state = 'readonly').grid(row = 4, column = 1, pady = 5, sticky = W + E)
+
+        #-----------------------------------------------------------------------------------------------# (Right)
+
+        # Add expense
+        ttk.Button(self.frame, text = 'Save Expense', command = self.add_expense).grid(row = 5, column = 1, pady = 5, sticky = W + E)
 
         #-----------------------------------------------------------------------------------------------# (Not implemented)
 
@@ -133,63 +148,8 @@ class Application(ttk.Frame):
 
         self.get_expenses()
 
-#-------------------------------------------------------------------------------------------------------# (Right)
-            
-    def myMessage(self, e_title, e_message):
-        messagebox.showerror(e_title, e_message)      
-
-#-------------------------------------------------------------------------------------------------------# (Right)
-
-    def tagMenu(self):
-        self.tag_wind = Toplevel()
-        self.tag_wind.title('Add Tag')
-        Label(self.tag_wind, text = 'Add a new tag: ').grid(row = 0, column = 0)
-        self.new_tag = Entry(self.tag_wind)
-        self.new_tag.focus()
-        self.new_tag.grid(row = 0, column = 1)
-        ttk.Button(self.tag_wind, text = 'Save', command = self.addTag).grid(row = 1, column = 0, columnspan = 2, sticky = W + E)
-
-    def addTag(self):
-        aux = self.new_tag.get()
-        tag = ""
-        for i in range(len(aux)):
-            if aux[i] == " ":
-                tag += "_"
-            else:
-                tag += aux[i]
-        if len(self.new_tag.get()) == 0:
-            self.myMessage("Error!", "You can not save an empty tag")
-        elif tag in self.options:
-            self.myMessage("Error!", "The tag alredy exist")
-        else:
-            self.options += [tag]
-            self.saveTags()
-            self.combo['values'] = self.options
-
-#-------------------------------------------------------------------------------------------------------# (Right)
-    
-    def loadTags(self):
-        dir = os.getcwd() + '/tags.txt'
-        file = open(dir, "r")
-        query = 'SELECT DISTINCT tag FROM expenses'
-        db_rows = self.run_query(query)
-        tags = list()
-        for row in db_rows:
-            tags += row
-        
-        for element in file.read().split():
-            if element not in tags:
-                tags.append(element)
-        return tags
-
-#-------------------------------------------------------------------------------------------------------# (Right)
-    
-    def saveTags(self):
-        dir = os.getcwd() + '/tags.txt'
-        file = open(dir, "w")
-        for element in self.options:
-            file.write(element + " ")
-        file.close()
+""" MAIN MENU FUNCTIONS """
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""    
 
 #-------------------------------------------------------------------------------------------------------# (Right) (Minor error in the error message)
 
@@ -255,6 +215,8 @@ class Application(ttk.Frame):
             return
         self.get_expenses()
 
+#-------------------------------------------------------------------------------------------------------# (Right)
+
     # User input validation
     def validation(self, expenditure, price):
         return len(expenditure) != 0 and len(price) != 0
@@ -319,7 +281,7 @@ class Application(ttk.Frame):
             self.myMessage('Error!', 'Introduce the new name and the new price')
             return
 
-#-------------------------------------------------------------------------------------------------------#
+#-------------------------------------------------------------------------------------------------------# (Not finished)
 
     def month_chart(self):
         month = list()
@@ -341,9 +303,164 @@ class Application(ttk.Frame):
                 month.append(self.months[actual_month - 1])
                 print(row[0], row[1])
 
-            actual_month -= 1       
+            actual_month -= 1
 
-#-------------------------------------------------------------------------------------------------------#
+""" TAG MENU """
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+#-------------------------------------------------------------------------------------------------------# (Right)
+
+    def tagMenu(self):
+        self.tag_wind = Toplevel()
+        self.tag_wind.title('Tag menu')
+
+        #-----------------------------------------------------------------------------------------------# (Right)
+
+        self.frame = LabelFrame(self.tag_wind, text = 'Enter a new tag')
+        self.frame.grid(row = 0, column = 0, columnspan = 2, pady = 20)
+
+        # Inside the frame container
+        #-----------------------------------------------------------------------------------------------# (Right)
+
+        Label(self.frame, text = 'Name: ').grid(row = 0, column = 0, pady = 5)
+        # Writing box
+        self.new_tag = Entry(self.frame)
+        self.new_tag.focus()
+        self.new_tag.grid(row = 0, column = 1, pady = 5)
+
+        #-----------------------------------------------------------------------------------------------# (Right)
+
+        ttk.Button(self.frame, text = 'Save', command = self.add_tag).grid(row = 1, column = 0, columnspan = 2, sticky = W + E)
+
+        #-----------------------------------------------------------------------------------------------# (Right)
+        # Outside the frame container
+
+        # Tags data
+        self.tag_tree = ttk.Treeview(self.tag_wind, height = 20)
+        self.tag_tree.grid(row = 1, column = 0, columnspan = 2)
+
+        self.tag_tree.heading('#0', text = 'Tags')
+        self.tag_tree.column('#0', anchor = 'center', width = 150)       
+
+        #-----------------------------------------------------------------------------------------------# (Right)
+
+        # Delete or edit tags data
+        ttk.Button(self.tag_wind, text = 'Delete tag', command = self.delete_tag).grid(row = 2, column = 0, pady = 5, sticky = W + E)
+        ttk.Button(self.tag_wind, text = 'Edit tag').grid(row = 2, column = 1, pady = 5, sticky = W + E)
+
+        self.get_tags()
+
+""" TAG MENU FUNCTIONS """
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+#-------------------------------------------------------------------------------------------------------# (Right)
+
+    def run_tag_query(self, query, parameters = ()):
+        with sqlite3.connect(self.tag_db_name) as conn:
+            cursor = conn.cursor()
+            result = cursor.execute(query, parameters)
+            conn.commit()
+        return result  
+
+#-------------------------------------------------------------------------------------------------------# (Right)
+
+    def get_tags(self):
+        # Refresh the table
+        records = self.tag_tree.get_children()
+        for element in records:
+            self.tag_tree.delete(element)
+        # Filling table with data or creating a new one if there is none
+        try:
+            query = 'SELECT * FROM tags'
+            db_rows = self.run_tag_query(query)
+            for row in db_rows:
+                self.tag_tree.insert('', "end", text = row[1], values = row[0])
+        except sqlite3.OperationalError:
+            #self.myMessage("Error!", "No DB found. A new DB has been created")
+            dir = os.getcwd() + '/tags.db'
+            file = open(dir, "w")
+            file.close()      
+            # Create a new DB
+            con = sqlite3.connect(dir)
+            cursor = con.cursor()
+            cursor.execute('''CREATE TABLE "tags"
+                ("id"	        INTEGER     NOT NULL    UNIQUE,
+	            "tag"	        TEXT        NOT NULL    UNIQUE,
+	            PRIMARY KEY("id"))''')
+            self.get_tags()
+
+#-------------------------------------------------------------------------------------------------------# (Right)
+
+    def add_tag(self):
+        tag = self.new_tag.get()
+        if len(tag) == 0:
+            self.myMessage("Error!", "You can not save an empty tag")
+            return
+        elif tag in self.options:
+            self.myMessage("Error!", "The tag alredy exist")
+            self.new_tag.delete(0, END)
+            return
+        else:
+            self.new_tag.delete(0, END)
+            self.saveTag(tag)
+            self.combo['values'] = self.options
+
+#-------------------------------------------------------------------------------------------------------# (Right)
+
+    def delete_tag(self):
+        try:
+           self.tag_tree.item(self.tag_tree.selection())['values'][0]
+        except IndexError:
+            self.myMessage('Error!', 'Please select a tag')
+            return
+        tag = self.tag_tree.item(self.tag_tree.selection())['values'][0]
+        query = 'DELETE FROM tags WHERE id = ?'
+        self.run_tag_query(query, (str(tag), ))
+        tag = self.tag_tree.item(self.tag_tree.selection())['text']
+        self.myMessage('Done!', 'Tag {} deleted successfully'.format(tag))
+        self.options.remove(tag)
+        self.combo['values'] = self.options
+        self.get_tags()
+
+
+#-------------------------------------------------------------------------------------------------------# (Right)
+    
+    def loadTags(self):
+        query = 'SELECT DISTINCT tag FROM expenses'
+        db_rows = self.run_query(query)
+        tags = list()
+        for row in db_rows:
+            tags += row
+        query = 'SELECT tag FROM tags'
+        tags_row = self.run_tag_query(query)
+        for row in tags_row:
+            if row not in tags:
+                tags.append(row)
+        return tags
+
+#-------------------------------------------------------------------------------------------------------# (Right)
+    
+    def saveTag(self, tag):
+        try:
+            query = 'INSERT INTO tags VALUES(NULL, ?)'
+            self.run_tag_query(query, (tag, ))
+            self.myMessage('Done!', 'Tag {} saved successfully'.format(tag))
+            self.options += [tag]
+            self.get_tags()
+        except sqlite3.IntegrityError:
+            self.myMessage("Error!", "The tag alredy exist")
+            return
+
+""" GLOBAL FUNCTIONS """
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""      
+
+#-------------------------------------------------------------------------------------------------------# (Right)
+            
+    def myMessage(self, e_title, e_message):
+        messagebox.showerror(e_title, e_message)
+
+""" MAIN """
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 if __name__ == '__main__':
     window = Tk()
