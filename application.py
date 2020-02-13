@@ -31,8 +31,8 @@ class Application(ttk.Frame):
     def __init__(self, window):
         super().__init__(window)
 
-""" MAIN MENU """
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#""" MAIN MENU """
+#""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
         self.window = window
         self.window.title('Expenses Control') 
@@ -68,7 +68,7 @@ class Application(ttk.Frame):
 
         # Load the tags
         try:
-            self.options = self.loadTags()
+            self.options = self.load_tags()
         except sqlite3.OperationalError:
             dir = os.getcwd() + '/tags.db'
             file = open(dir, "w")
@@ -80,7 +80,7 @@ class Application(ttk.Frame):
                 ("id"	        INTEGER     NOT NULL    UNIQUE,
 	            "tag"	        TEXT        NOT NULL    UNIQUE,
 	            PRIMARY KEY("id"))''')
-            self.loadTags()
+            self.load_tags()
 
         #-----------------------------------------------------------------------------------------------# (Right)
 
@@ -148,8 +148,8 @@ class Application(ttk.Frame):
 
         self.get_expenses()
 
-""" MAIN MENU FUNCTIONS """
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""    
+#""" MAIN MENU FUNCTIONS """
+#""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""    
 
 #-------------------------------------------------------------------------------------------------------# (Right) (Minor error in the error message)
 
@@ -245,31 +245,42 @@ class Application(ttk.Frame):
             return
         old_name = self.tree.item(self.tree.selection())['text']
         old_price = self.tree.item(self.tree.selection())['values'][0]
+        old_tag = self.tree.item(self.tree.selection())['values'][1]
         self.edit_wind = Toplevel()
         self.edit_wind.title = 'Edit expense'
         # Old Name
-        Label(self.edit_wind, text = 'Old name: ').grid(row = 0, column = 1, pady = 5)
-        Entry(self.edit_wind, textvariable = StringVar(self.edit_wind, value = old_name), state = 'readonly').grid(row = 0, column = 2, pady = 5)
+        Label(self.edit_wind, text = 'Old name: ').grid(row = 0, column = 0, pady = 5)
+        Entry(self.edit_wind, textvariable = StringVar(self.edit_wind, value = old_name), state = 'readonly').grid(row = 0, column = 1, pady = 5)
         # New Name
-        Label(self.edit_wind, text = 'New name:').grid(row = 1, column = 1, pady = 5)
+        Label(self.edit_wind, text = 'New name:').grid(row = 1, column = 0, pady = 5)
         new_name = Entry(self.edit_wind)
-        new_name.grid(row = 1, column = 2, pady = 5)
+        new_name.grid(row = 1, column = 1, pady = 5)
         # Old Price 
-        Label(self.edit_wind, text = 'Old price:').grid(row = 2, column = 1, pady = 5)
-        Entry(self.edit_wind, textvariable = StringVar(self.edit_wind, value = old_price), state = 'readonly').grid(row = 2, column = 2, pady = 5)
+        Label(self.edit_wind, text = 'Old price:').grid(row = 2, column = 0, pady = 5)
+        Entry(self.edit_wind, textvariable = StringVar(self.edit_wind, value = old_price), state = 'readonly').grid(row = 2, column = 1, pady = 5)
         # New Price
-        Label(self.edit_wind, text = 'New price:').grid(row = 3, column = 1, pady = 5)
+        Label(self.edit_wind, text = 'New price:').grid(row = 3, column = 0, pady = 5)
         new_price = Entry(self.edit_wind)
-        new_price.grid(row = 3, column = 2, pady = 5)
-        
-        Button(self.edit_wind, text = 'Update', command = lambda: self.edit_expenditure(new_name.get(), old_name, new_price.get(), old_price, id)).grid(row = 4, column = 1,columnspan = 2, sticky = W + E)
+        new_price.grid(row = 3, column = 1, pady = 5)
+        # Old Tag
+        Label(self.edit_wind, text = 'Old tag:').grid(row = 4, column = 0, pady = 5)
+        Entry(self.edit_wind, textvariable = StringVar(self.edit_wind, value = old_tag), state = 'readonly').grid(row = 4, column = 1, pady = 5)
+        # New Tag
+        Label(self.edit_wind, text = 'New tag:').grid(row = 5, column = 0, pady = 5)
+        combo = ttk.Combobox(self.edit_wind, state = "readonly")
+        combo.grid(row = 5, column = 1, pady = 5)
+        combo['values'] = self.options
 
-    def edit_expenditure(self, new_name, old_name, new_price, old_price, id):
+        Button(self.edit_wind, text = 'Update', command = lambda: self.edit_expenditure(new_name.get(), old_name, new_price.get(), old_price, combo.get(), old_tag, id)).grid(row = 6, column = 0,columnspan = 2, pady = 5, sticky = W + E)
+
+    def edit_expenditure(self, new_name, old_name, new_price, old_price, new_tag, old_tag, id):
+        if len(new_tag) == 0:
+            new_tag = old_tag
         if self.validation(new_name, new_price):
             try:
                 new_price = float(new_price)
-                query = 'UPDATE expenses SET expenditure = ?, price = ? WHERE expenditure = ? AND price = ? AND id = ?'
-                parameters = (new_name, new_price, old_name, old_price, id)
+                query = 'UPDATE expenses SET expenditure = ?, price = ?, tag = ? WHERE expenditure = ? AND price = ? AND tag = ? AND id = ?'
+                parameters = (new_name, new_price, new_tag, old_name, old_price, old_tag, id)
                 self.run_query(query, parameters)
                 self.myMessage('Done!', 'Expense {} updated successfully'.format(old_name))
                 self.edit_wind.destroy()
@@ -277,9 +288,32 @@ class Application(ttk.Frame):
             except ValueError:
                 self.myMessage('Error!', 'The price must be a real number')
                 return
+        elif len(new_name) == 0 and len(new_price) != 0:
+            try:
+                new_price = float(new_price)
+                query = 'UPDATE expenses SET expenditure = ?, price = ?, tag = ? WHERE expenditure = ? AND price = ? AND tag = ? AND id = ?'
+                parameters = (old_name, new_price, new_tag, old_name, old_price, old_tag, id)
+                self.run_query(query, parameters)
+                self.myMessage('Done!', 'Expense {} updated successfully'.format(old_name))
+                self.edit_wind.destroy()
+                self.get_expenses()
+            except ValueError:
+                self.myMessage('Error!', 'The price must be a real number')
+                return
+        elif len(new_price) == 0 and len(new_name) != 0:
+            query = 'UPDATE expenses SET expenditure = ?, price = ?, tag = ? WHERE expenditure = ? AND price = ? AND tag = ? AND id = ?'
+            parameters = (new_name, old_price, new_tag, old_name, old_price, old_tag, id)
+            self.run_query(query, parameters)
+            self.myMessage('Done!', 'Expense {} updated successfully'.format(old_name))
+            self.edit_wind.destroy()
+            self.get_expenses()
         else:
-            self.myMessage('Error!', 'Introduce the new name and the new price')
-            return
+            query = 'UPDATE expenses SET expenditure = ?, price = ?, tag = ? WHERE expenditure = ? AND price = ? AND tag = ? AND id = ?'
+            parameters = (old_name, old_price, new_tag, old_name, old_price, old_tag, id)
+            self.run_query(query, parameters)
+            self.myMessage('Done!', 'Expense {} updated successfully'.format(old_name))
+            self.edit_wind.destroy()
+            self.get_expenses()
 
 #-------------------------------------------------------------------------------------------------------# (Not finished)
 
@@ -305,8 +339,8 @@ class Application(ttk.Frame):
 
             actual_month -= 1
 
-""" TAG MENU """
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#""" TAG MENU """
+#""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 #-------------------------------------------------------------------------------------------------------# (Right)
 
@@ -350,17 +384,8 @@ class Application(ttk.Frame):
 
         self.get_tags()
 
-""" TAG MENU FUNCTIONS """
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
-#-------------------------------------------------------------------------------------------------------# (Right)
-
-    def run_tag_query(self, query, parameters = ()):
-        with sqlite3.connect(self.tag_db_name) as conn:
-            cursor = conn.cursor()
-            result = cursor.execute(query, parameters)
-            conn.commit()
-        return result  
+#""" TAG MENU FUNCTIONS """
+#""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""  
 
 #-------------------------------------------------------------------------------------------------------# (Right)
 
@@ -391,6 +416,15 @@ class Application(ttk.Frame):
 
 #-------------------------------------------------------------------------------------------------------# (Right)
 
+    def run_tag_query(self, query, parameters = ()):
+        with sqlite3.connect(self.tag_db_name) as conn:
+            cursor = conn.cursor()
+            result = cursor.execute(query, parameters)
+            conn.commit()
+        return result
+
+#-------------------------------------------------------------------------------------------------------# (Right)
+
     def add_tag(self):
         tag = self.new_tag.get()
         if len(tag) == 0:
@@ -402,8 +436,24 @@ class Application(ttk.Frame):
             return
         else:
             self.new_tag.delete(0, END)
-            self.saveTag(tag)
+            self.save_tag(tag)
             self.combo['values'] = self.options
+    
+    def save_tag(self, tag):
+        try:
+            query = 'INSERT INTO tags VALUES(NULL, ?)'
+            self.run_tag_query(query, (tag, ))
+            self.myMessage('Done!', 'Tag {} saved successfully'.format(tag))
+            self.options += [tag]
+            self.get_tags()
+        except sqlite3.IntegrityError:
+            self.myMessage("Error!", "The tag alredy exist")
+            return
+
+#-------------------------------------------------------------------------------------------------------#
+
+    def edit_tag(self):
+        return
 
 #-------------------------------------------------------------------------------------------------------# (Right)
 
@@ -422,45 +472,48 @@ class Application(ttk.Frame):
         self.combo['values'] = self.options
         self.get_tags()
 
-
-#-------------------------------------------------------------------------------------------------------# (Right)
-    
-    def loadTags(self):
-        query = 'SELECT DISTINCT tag FROM expenses'
-        db_rows = self.run_query(query)
-        tags = list()
-        for row in db_rows:
-            tags += row
-        query = 'SELECT tag FROM tags'
-        tags_row = self.run_tag_query(query)
-        for row in tags_row:
-            if row not in tags:
-                tags.append(row)
-        return tags
-
-#-------------------------------------------------------------------------------------------------------# (Right)
-    
-    def saveTag(self, tag):
-        try:
-            query = 'INSERT INTO tags VALUES(NULL, ?)'
-            self.run_tag_query(query, (tag, ))
-            self.myMessage('Done!', 'Tag {} saved successfully'.format(tag))
-            self.options += [tag]
-            self.get_tags()
-        except sqlite3.IntegrityError:
-            self.myMessage("Error!", "The tag alredy exist")
-            return
-
-""" GLOBAL FUNCTIONS """
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""      
+#""" GLOBAL FUNCTIONS """
+#""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""      
 
 #-------------------------------------------------------------------------------------------------------# (Right)
             
     def myMessage(self, e_title, e_message):
         messagebox.showerror(e_title, e_message)
 
-""" MAIN """
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+#-------------------------------------------------------------------------------------------------------# (Right)
+    
+    def load_tags(self):
+        tags = list()
+        query = 'SELECT tag FROM tags'
+        tags_row = self.run_tag_query(query)
+        for row in tags_row:
+            if row not in tags:
+                tags += row
+        try:
+            query = 'SELECT DISTINCT tag FROM expenses'
+            db_rows = self.run_query(query)
+            for row in db_rows:
+                if row not in tags:
+                    tags += row
+            return tags
+        except sqlite3.OperationalError:
+            dir = os.getcwd() + '/database.db'
+            file = open(dir, "w")
+            file.close()      
+            # Create a new DB
+            con = sqlite3.connect(dir)
+            cursor = con.cursor()
+            cursor.execute('''CREATE TABLE "expenses"
+                ("id"	        INTEGER     NOT NULL    UNIQUE,
+	            "expenditure"	TEXT        NOT NULL,
+	            "price"	        REAL        NOT NULL,
+                "tag"	        TEXT,
+	            "date"	        TEXT        NOT NULL,
+	            PRIMARY KEY("id"))''')
+            self.load_tags()
+
+#""" MAIN """
+#""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 if __name__ == '__main__':
     window = Tk()
