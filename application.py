@@ -270,7 +270,6 @@ class Application(ttk.Frame):
         combo = ttk.Combobox(self.edit_wind, state = "readonly")
         combo.grid(row = 5, column = 1, pady = 5)
         combo['values'] = self.options
-
         Button(self.edit_wind, text = 'Update', command = lambda: self.edit_expenditure(new_name.get(), old_name, new_price.get(), old_price, combo.get(), old_tag, id)).grid(row = 6, column = 0,columnspan = 2, pady = 5, sticky = W + E)
 
     def edit_expenditure(self, new_name, old_name, new_price, old_price, new_tag, old_tag, id):
@@ -380,7 +379,7 @@ class Application(ttk.Frame):
 
         # Delete or edit tags data
         ttk.Button(self.tag_wind, text = 'Delete tag', command = self.delete_tag).grid(row = 2, column = 0, pady = 5, sticky = W + E)
-        ttk.Button(self.tag_wind, text = 'Edit tag').grid(row = 2, column = 1, pady = 5, sticky = W + E)
+        ttk.Button(self.tag_wind, text = 'Edit tag', command = self.edit_tag_menu).grid(row = 2, column = 1, pady = 5, sticky = W + E)
 
         self.get_tags()
 
@@ -452,8 +451,38 @@ class Application(ttk.Frame):
 
 #-------------------------------------------------------------------------------------------------------#
 
-    def edit_tag(self):
-        return
+    def edit_tag_menu(self):
+        try:
+            old_name = self.tag_tree.item(self.tag_tree.selection())['text'][0]
+        except IndexError:
+            self.myMessage('Error!', 'Please select a tag')
+            return
+        old_name = self.tag_tree.item(self.tag_tree.selection())['text']
+        self.edit_tag_wind = Toplevel()
+        self.edit_tag_wind.title = 'Edit tag'
+        # Old Name
+        Label(self.edit_tag_wind, text = 'Old name: ').grid(row = 0, column = 0, pady = 5)
+        Entry(self.edit_tag_wind, textvariable = StringVar(self.edit_tag_wind, value = old_name), state = 'readonly').grid(row = 0, column = 1, pady = 5)
+        # New Name
+        Label(self.edit_tag_wind, text = 'New name:').grid(row = 1, column = 0, pady = 5)
+        new_name = Entry(self.edit_tag_wind)
+        new_name.grid(row = 1, column = 1, pady = 5)
+        Button(self.edit_tag_wind, text = 'Update', command = lambda: self.edit_tag(new_name.get(), old_name)).grid(row = 6, column = 0,columnspan = 2, pady = 5, sticky = W + E)
+
+    def edit_tag(self, new_name, old_name):
+        if len(new_name) == 0:
+            new_name = old_name
+        try:
+            query = 'UPDATE tags SET tag = ? WHERE tag = ?'
+            parameters = (new_name, old_name)
+            self.run_tag_query(query, parameters)
+            self.myMessage('Done!', 'Tag {} updated successfully'.format(old_name))
+            self.edit_tag_wind.destroy()
+            self.get_tags()
+        except sqlite3.IntegrityError:
+            self.myMessage('Error!', 'The tag alredy exist')
+            return
+        
 
 #-------------------------------------------------------------------------------------------------------# (Right)
 
@@ -489,28 +518,12 @@ class Application(ttk.Frame):
         for row in tags_row:
             if row not in tags:
                 tags += row
-        try:
-            query = 'SELECT DISTINCT tag FROM expenses'
-            db_rows = self.run_query(query)
-            for row in db_rows:
-                if row not in tags:
-                    tags += row
-            return tags
-        except sqlite3.OperationalError:
-            dir = os.getcwd() + '/database.db'
-            file = open(dir, "w")
-            file.close()      
-            # Create a new DB
-            con = sqlite3.connect(dir)
-            cursor = con.cursor()
-            cursor.execute('''CREATE TABLE "expenses"
-                ("id"	        INTEGER     NOT NULL    UNIQUE,
-	            "expenditure"	TEXT        NOT NULL,
-	            "price"	        REAL        NOT NULL,
-                "tag"	        TEXT,
-	            "date"	        TEXT        NOT NULL,
-	            PRIMARY KEY("id"))''')
-            self.load_tags()
+        query = 'SELECT DISTINCT tag FROM expenses'
+        db_rows = self.run_query(query)
+        for row in db_rows:
+            if row in tags:
+                tags += row
+        return tags
 
 #""" MAIN """
 #""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
