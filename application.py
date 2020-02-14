@@ -518,11 +518,28 @@ class Application(ttk.Frame):
         for row in tags_row:
             if row not in tags:
                 tags += row
-        query = 'SELECT DISTINCT tag FROM expenses'
-        db_rows = self.run_query(query)
-        for row in db_rows:
-            if row in tags:
-                tags += row
+        try:
+            query = 'SELECT DISTINCT tag FROM expenses'
+            db_rows = self.run_query(query)
+            for row in db_rows:
+                if row in tags:
+                    tags += row
+        except sqlite3.OperationalError:
+            dir = os.getcwd() + '/database.db'
+            file = open(dir, "w")
+            file.close()      
+            # Create a new DB
+            con = sqlite3.connect(dir)
+            cursor = con.cursor()
+            cursor.execute('''CREATE TABLE "expenses"
+                ("id"	        INTEGER     NOT NULL    UNIQUE,
+	            "expenditure"	TEXT        NOT NULL,
+	            "price"	        REAL        NOT NULL,
+                "tag"	        TEXT,
+	            "date"	        TEXT        NOT NULL,
+	            PRIMARY KEY("id"))''')
+            self.load_tags()
+
         return tags
 
 #""" MAIN """
