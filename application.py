@@ -103,7 +103,6 @@ class Application(ttk.Frame):
         # Label
         Label(self.frame, text = 'Date: ').grid(row = 4, column = 0, pady = 5)
         # Calendar (I do not know yet how to implement it, so meanwhile the date of the system)
-        #ttk.Button(self.frame, text = 'Calendar').grid(row = 3, column = 1, pady = 5, sticky = W + E)
         self.date = time.strftime("%d/%m/%y")
         Entry(self.frame, textvariable = StringVar(self.frame, value = self.date), state = 'readonly').grid(row = 4, column = 1, pady = 5, sticky = W + E)
 
@@ -112,17 +111,11 @@ class Application(ttk.Frame):
         # Add expense
         ttk.Button(self.frame, text = 'Save Expense', command = self.add_expense).grid(row = 5, column = 1, pady = 5, sticky = W + E)
 
-        #-----------------------------------------------------------------------------------------------# (Not implemented)
-
-        # Import or export expenses data
-        ttk.Button(text = "Import Expenses").grid(row = 1, column = 0, sticky = W + E)
-        ttk.Button(text = 'Export Expenses').grid(row = 1, column = 1, sticky = W + E)
-
         #-----------------------------------------------------------------------------------------------# (Right)
 
         # Expenses data
         self.tree = ttk.Treeview(height = 20)
-        self.tree.grid(row = 2, column = 0, columnspan = 2, pady = 5)
+        self.tree.grid(row = 1, column = 0, columnspan = 2, pady = 5)
         self.tree["column"] = ["price", "tag", "date"]
 
         self.tree.heading('#0', text = 'Expenditure')
@@ -137,12 +130,12 @@ class Application(ttk.Frame):
         #-----------------------------------------------------------------------------------------------# (Right)
 
         # Delete or edit expenses data
-        ttk.Button(text = 'Delete expense', command = self.delete_expense).grid(row = 3, column = 0, sticky = W + E)
-        ttk.Button(text = 'Edit expense', command = self.edit_expense).grid(row = 3, column = 1, sticky = W + E)
+        ttk.Button(text = 'Delete expense', command = self.delete_expense).grid(row = 2, column = 0, sticky = W + E)
+        ttk.Button(text = 'Edit expense', command = self.edit_expense).grid(row = 2, column = 1, sticky = W + E)
 
         #-----------------------------------------------------------------------------------------------# (Not implemented)
 
-        ttk.Button(text = 'See expense chart by month', command = self.month_chart).grid(row = 4, column = 0, columnspan = 2, pady = 5, sticky = W + E)
+        ttk.Button(text = 'See expense chart by month', command = self.month_chart).grid(row = 3, column = 0, columnspan = 2, pady = 5, sticky = W + E)
 
         #-----------------------------------------------------------------------------------------------#
 
@@ -196,11 +189,12 @@ class Application(ttk.Frame):
 
     def add_expense(self):
         if self.validation(self.expenditure.get(), self.price.get()):
-            query = 'INSERT INTO expenses VALUES(NULL, ?, ?, ?, ?)'
-            if len(self.combo.get()) == 0:
-                self.combo.set("Other")
             try:
+                query = 'INSERT INTO expenses VALUES(NULL, ?, ?, ?, ?)'
                 parameters =  (self.expenditure.get(), float(self.price.get()), self.combo.get(), self.date)
+                if len(self.combo.get()) == 0:
+                    query = 'INSERT INTO expenses VALUES(NULL, ?, ?, NULL, ?)'
+                    parameters =  (self.expenditure.get(), float(self.price.get()), self.date)
                 self.run_query(query, parameters)
                 self.myMessage('Done!', 'Expense {} added successfully'.format(self.expenditure.get()))
                 # Cleaning the input
@@ -209,6 +203,7 @@ class Application(ttk.Frame):
             except ValueError:
                 self.myMessage('Error!', 'The price must be a real number')
                 self.price.delete(0, END)
+                self.combo.delete(0, END)
                 return
         else:
             self.myMessage('Error!', 'Expediture and price is required')
@@ -273,13 +268,17 @@ class Application(ttk.Frame):
         Button(self.edit_wind, text = 'Update', command = lambda: self.edit_expenditure(new_name.get(), old_name, new_price.get(), old_price, combo.get(), old_tag, id)).grid(row = 6, column = 0,columnspan = 2, pady = 5, sticky = W + E)
 
     def edit_expenditure(self, new_name, old_name, new_price, old_price, new_tag, old_tag, id):
+        if len(new_name) == 0:
+            new_name = old_name
+        if len(new_price) == 0:
+            new_price = old_price
         if len(new_tag) == 0:
             new_tag = old_tag
         if self.validation(new_name, new_price):
             try:
                 new_price = float(new_price)
-                query = 'UPDATE expenses SET expenditure = ?, price = ?, tag = ? WHERE expenditure = ? AND price = ? AND tag = ? AND id = ?'
-                parameters = (new_name, new_price, new_tag, old_name, old_price, old_tag, id)
+                query = 'UPDATE expenses SET expenditure = ?, price = ?, tag = ? WHERE id = ?'
+                parameters = (new_name, new_price, new_tag, id)
                 self.run_query(query, parameters)
                 self.myMessage('Done!', 'Expense {} updated successfully'.format(old_name))
                 self.edit_wind.destroy()
@@ -287,32 +286,6 @@ class Application(ttk.Frame):
             except ValueError:
                 self.myMessage('Error!', 'The price must be a real number')
                 return
-        elif len(new_name) == 0 and len(new_price) != 0:
-            try:
-                new_price = float(new_price)
-                query = 'UPDATE expenses SET expenditure = ?, price = ?, tag = ? WHERE expenditure = ? AND price = ? AND tag = ? AND id = ?'
-                parameters = (old_name, new_price, new_tag, old_name, old_price, old_tag, id)
-                self.run_query(query, parameters)
-                self.myMessage('Done!', 'Expense {} updated successfully'.format(old_name))
-                self.edit_wind.destroy()
-                self.get_expenses()
-            except ValueError:
-                self.myMessage('Error!', 'The price must be a real number')
-                return
-        elif len(new_price) == 0 and len(new_name) != 0:
-            query = 'UPDATE expenses SET expenditure = ?, price = ?, tag = ? WHERE expenditure = ? AND price = ? AND tag = ? AND id = ?'
-            parameters = (new_name, old_price, new_tag, old_name, old_price, old_tag, id)
-            self.run_query(query, parameters)
-            self.myMessage('Done!', 'Expense {} updated successfully'.format(old_name))
-            self.edit_wind.destroy()
-            self.get_expenses()
-        else:
-            query = 'UPDATE expenses SET expenditure = ?, price = ?, tag = ? WHERE expenditure = ? AND price = ? AND tag = ? AND id = ?'
-            parameters = (old_name, old_price, new_tag, old_name, old_price, old_tag, id)
-            self.run_query(query, parameters)
-            self.myMessage('Done!', 'Expense {} updated successfully'.format(old_name))
-            self.edit_wind.destroy()
-            self.get_expenses()
 
 #-------------------------------------------------------------------------------------------------------# (Not finished)
 
@@ -513,17 +486,19 @@ class Application(ttk.Frame):
     
     def load_tags(self):
         tags = list()
-        query = 'SELECT tag FROM tags'
-        tags_row = self.run_tag_query(query)
-        for row in tags_row:
-            if row not in tags:
-                tags += row
+        tags.append("")
         try:
+            query = 'SELECT tag FROM tags'
+            tags_row = self.run_tag_query(query)
+            for row in tags_row:
+                if row not in tags:
+                    tags += row
             query = 'SELECT DISTINCT tag FROM expenses'
             db_rows = self.run_query(query)
             for row in db_rows:
                 if row in tags:
                     tags += row
+            return tags
         except sqlite3.OperationalError:
             dir = os.getcwd() + '/database.db'
             file = open(dir, "w")
@@ -538,9 +513,7 @@ class Application(ttk.Frame):
                 "tag"	        TEXT,
 	            "date"	        TEXT        NOT NULL,
 	            PRIMARY KEY("id"))''')
-            self.load_tags()
-
-        return tags
+            self.load_tags
 
 #""" MAIN """
 #""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
